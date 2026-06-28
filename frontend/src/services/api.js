@@ -51,4 +51,10 @@ export const getStatistics = async (userId) => {
   return data;
 };
 
+// GET /api/ai/recommendations/:userId -> { recommendations: [...] }
+export const getRecommendations = async (userId) => {
+  const { data } = await api.get(`/ai/recommendations/${userId}`);
+  return data;
+};
+
 export default api;

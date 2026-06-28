@@ -147,3 +147,66 @@ export const interpretMessage = async (message) => {
     throw new Error('AI returned malformed JSON.');
   }
 };
+
+// System prompt for the financial-advice feature. The AI ONLY analyses the
+// structured summary it is given — it has no database access and makes no
+// changes; it just returns advice as JSON.
+const RECOMMENDATIONS_PROMPT = `You are a concise personal finance advisor.
+
+You will be given a JSON summary of one user's monthly budget and spending.
+Analyse ONLY the data provided. Do not invent numbers or categories.
+
+Return ONLY a JSON object of exactly this shape:
+{ "recommendations": ["...", "...", "..."] }
+
+Rules:
+- Provide 3 to 5 short recommendations.
+- Each recommendation must be at most 40 words.
+- Base them on the data: percentage of each category spent, categories that are
+  over or under budget, total remaining budget, and overall pace.
+- Be specific and actionable; mention category names and approximate percentages.
+- Plain text sentences only. No markdown, no bullet characters, no extra fields.
+- You never modify budgets or expenses, never run code or SQL, and never make
+  decisions for the user — you only give advice.`;
+
+// Generate 3–5 short financial recommendations from a structured summary.
+// `summary` is a plain object (budget totals + per-category + recent expenses).
+export const generateRecommendations = async (summary) => {
+  const openai = getClient();
+
+  let completion;
+  try {
+    completion = await openai.chat.completions.create({
+      model: config.openai.model,
+      temperature: 0.5, // a little variety in phrasing
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: RECOMMENDATIONS_PROMPT },
+        { role: 'user', content: JSON.stringify(summary) },
+      ],
+    });
+  } catch (err) {
+    if (err?.name === 'APIConnectionTimeoutError') {
+      throw new Error('The AI request timed out. Please try again.');
+    }
+    throw new Error(err?.message || 'The AI service is unavailable.');
+  }
+
+  const raw = completion.choices?.[0]?.message?.content ?? '';
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('AI returned malformed JSON.');
+  }
+
+  // Normalise: keep only non-empty strings, at most 5.
+  const list = Array.isArray(parsed.recommendations)
+    ? parsed.recommendations
+    : [];
+  return list
+    .filter((r) => typeof r === 'string' && r.trim())
+    .map((r) => r.trim())
+    .slice(0, 5);
+};

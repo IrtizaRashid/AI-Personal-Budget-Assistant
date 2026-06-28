@@ -5,6 +5,7 @@ import {
   getCategories,
   getExpenses,
   getStatistics,
+  getRecommendations,
 } from '../services/api.js';
 import SummaryCard from '../components/SummaryCard.jsx';
 import CategoryTable from '../components/CategoryTable.jsx';
@@ -12,6 +13,7 @@ import ChatBox from '../components/ChatBox.jsx';
 import ExpenseHistory from '../components/ExpenseHistory.jsx';
 import RecentExpenses from '../components/RecentExpenses.jsx';
 import WarningToast from '../components/WarningToast.jsx';
+import AIRecommendations from '../components/AIRecommendations.jsx';
 import ChartCard from '../components/charts/ChartCard.jsx';
 import PieChart from '../components/charts/PieChart.jsx';
 import BarChart from '../components/charts/BarChart.jsx';
@@ -72,8 +74,32 @@ export default function Dashboard() {
     [userId]
   );
 
-  // Silent refresh used by chat + delete actions (no spinner, keeps chat).
-  const refresh = useCallback(() => loadData(true), [loadData]);
+  // --- AI recommendations (independent of the main data load) ---
+  // Kept separate so the slower AI call doesn't block the dashboard, and so
+  // its own loading/error states can be shown inside the card.
+  const [recommendations, setRecommendations] = useState([]);
+  const [recLoading, setRecLoading] = useState(true);
+  const [recError, setRecError] = useState(false);
+
+  const loadRecommendations = useCallback(async () => {
+    try {
+      setRecLoading(true);
+      setRecError(false);
+      const data = await getRecommendations(userId);
+      setRecommendations(data.recommendations || []);
+    } catch {
+      setRecError(true); // card shows "temporarily unavailable"
+    } finally {
+      setRecLoading(false);
+    }
+  }, [userId]);
+
+  // Silent refresh used by chat + delete + transfer actions (no spinner, keeps
+  // chat). Also re-fetches AI recommendations so advice stays current.
+  const refresh = useCallback(() => {
+    loadData(true);
+    loadRecommendations();
+  }, [loadData, loadRecommendations]);
 
   // --- Budget warning toasts ---
   // Auto-dismissing cards shown when a category gets low/exceeded after an
@@ -98,7 +124,8 @@ export default function Dashboard() {
   // Fetch automatically when the dashboard opens.
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadRecommendations();
+  }, [loadData, loadRecommendations]);
 
   // --- Prepare chart data from the statistics payload ---
   const catLabels = stats ? stats.allocated.map((a) => a.category) : [];
@@ -193,6 +220,15 @@ export default function Dashboard() {
                 label="Total Expenses"
                 value={stats ? stats.expenseCount : 0}
                 accent="bg-cyan-500"
+              />
+            </section>
+
+            {/* AI Recommendations (auto-refreshes when expenses change) */}
+            <section className="mt-8">
+              <AIRecommendations
+                recommendations={recommendations}
+                loading={recLoading}
+                error={recError}
               />
             </section>
 

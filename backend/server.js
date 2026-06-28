@@ -17,6 +17,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
+import recommendationRoutes from './routes/recommendationRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
@@ -34,6 +35,7 @@ app.use('/api/categories', categoryRoutes); // POST /api/categories, GET /api/ca
 app.use('/api/expenses', expenseRoutes);    // POST /api/expenses,   GET /api/expenses/:userId
 app.use('/api/dashboard', dashboardRoutes); // GET  /api/dashboard/:userId
 app.use('/api/statistics', statisticsRoutes); // GET /api/statistics/:userId
+app.use('/api/ai/recommendations', recommendationRoutes); // GET /api/ai/recommendations/:userId
 app.use('/api', chatRoutes);                // POST /api/chat
 
 // ---- Fallbacks ----
