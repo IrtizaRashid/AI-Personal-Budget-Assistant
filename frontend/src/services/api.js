@@ -11,12 +11,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// GET /api/health -> { status: "Server Running" }
-export const checkHealth = async () => {
-  const { data } = await api.get('/health');
-  return data;
-};
-
 // POST /api/setup-budget
 // payload: { name, monthlyBudget, categories: [{ category, allocatedAmount }] }
 export const setupBudget = async (payload) => {

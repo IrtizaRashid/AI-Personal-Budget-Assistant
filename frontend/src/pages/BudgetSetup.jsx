@@ -112,6 +112,9 @@ export default function BudgetSetup() {
       localStorage.setItem('budgetUserId', result.userId);
       setSuccess('Budget setup completed successfully.');
       // Briefly show the success message, then go to the dashboard.
+      // NOTE: we intentionally do NOT reset `loading` here — keeping the
+      // buttons disabled until navigation prevents a duplicate submission
+      // (a second click during the 1.5s window would create a second user).
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       // Prefer the backend's message; fall back to a generic one.
@@ -119,7 +122,7 @@ export default function BudgetSetup() {
         err.response?.data?.error ||
           'Something went wrong while saving. Please try again.'
       );
-    } finally {
+      // Only re-enable on failure so the user can retry.
       setLoading(false);
     }
   };

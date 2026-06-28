@@ -188,6 +188,15 @@ export const chat = asyncHandler(async (req, res) => {
     }
 
     // ----------------------------------------------------------------
+    // The AI couldn't map the message to a supported action.
+    case 'unknown':
+      return res.status(200).json({
+        intent: 'unknown',
+        message:
+          "I can help you add expenses, check your remaining budget, or show/delete expenses. Try: \"I spent 500 on pizza\".",
+      });
+
+    // ----------------------------------------------------------------
     default:
       return res
         .status(422)

@@ -57,6 +57,10 @@ SUPPORTED INTENTS and their EXACT JSON shapes:
 7) Delete the most recent expense:
 { "intent": "delete_last_expense" }
 
+If the message does not clearly match any of the intents above (small talk,
+unrelated questions, unclear requests), return exactly:
+{ "intent": "unknown" }
+
 EXAMPLES:
 User: I spent 500 on pizza.
 { "intent": "add_expense", "category": "Food", "amount": 500, "description": "Pizza" }
@@ -104,6 +108,8 @@ const getClient = () => {
     client = new OpenAI({
       apiKey: config.openai.apiKey,
       baseURL: config.openai.baseURL,
+      timeout: 15000, // fail fast (15s) instead of hanging the request
+      maxRetries: 1, // one automatic retry on transient network errors
     });
   }
   return client;
@@ -113,15 +119,24 @@ const getClient = () => {
 export const interpretMessage = async (message) => {
   const openai = getClient();
 
-  const completion = await openai.chat.completions.create({
-    model: config.openai.model,
-    temperature: 0, // deterministic, reduces hallucinated formats
-    response_format: { type: 'json_object' }, // forces valid JSON output
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: message },
-    ],
-  });
+  let completion;
+  try {
+    completion = await openai.chat.completions.create({
+      model: config.openai.model,
+      temperature: 0, // deterministic, reduces hallucinated formats
+      response_format: { type: 'json_object' }, // forces valid JSON output
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: message },
+      ],
+    });
+  } catch (err) {
+    // Turn SDK errors (timeout, quota, network) into a friendly message.
+    if (err?.name === 'APIConnectionTimeoutError') {
+      throw new Error('The AI request timed out. Please try again.');
+    }
+    throw new Error(err?.message || 'The AI service is unavailable.');
+  }
 
   const raw = completion.choices?.[0]?.message?.content ?? '';
 

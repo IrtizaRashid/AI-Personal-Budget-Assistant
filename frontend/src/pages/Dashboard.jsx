@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   getDashboard,
   getCategories,
@@ -26,6 +27,8 @@ const CATEGORY_COLORS = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   // The current user's id is saved to localStorage after budget setup (Step 3).
   // Fall back to user 1 so the dashboard is testable directly.
   const userId = localStorage.getItem('budgetUserId') || 1;
@@ -115,12 +118,21 @@ export default function Dashboard() {
         {!loading && error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
             <p className="text-red-700">{error}</p>
-            <button
-              onClick={loadData}
-              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-            >
-              Retry
-            </button>
+            <div className="mt-4 flex justify-center gap-3">
+              <button
+                onClick={() => loadData()}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                Retry
+              </button>
+              {/* If the user has no budget yet, send them to setup. */}
+              <button
+                onClick={() => navigate('/')}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Go to Budget Setup
+              </button>
+            </div>
           </div>
         )}
 

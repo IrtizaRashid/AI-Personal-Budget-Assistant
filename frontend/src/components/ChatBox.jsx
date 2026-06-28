@@ -59,6 +59,8 @@ const buildAssistantMessage = (data) => {
           data.deleted.amount
         )}${data.deleted.description ? ` (${data.deleted.description})` : ''}.`,
       };
+    case 'unknown':
+      return { role: 'assistant', text: data.message };
     default:
       return { role: 'assistant', text: 'Done.' };
   }
