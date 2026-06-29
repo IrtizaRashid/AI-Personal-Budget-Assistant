@@ -14,6 +14,7 @@ import {
   exceedsMonthlyBudget,
   monthlyBudgetExceeded,
 } from '../utils/monthlyBudget.js';
+import { resolveExpenseDate } from '../utils/dateParser.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ const matchCategory = (raw, validCategories) => {
 
 // Process a single add_expense intent. Returns a response object.
 // Shared by both add_expense and add_multiple_expenses handlers.
-const processSingleExpense = async (userId, rawCategory, amount, description, validCategories, user) => {
+const processSingleExpense = async (userId, rawCategory, amount, description, validCategories, user, expenseDate = null) => {
   const category = matchCategory(rawCategory, validCategories);
   if (!category) {
     return {
@@ -120,6 +121,7 @@ const processSingleExpense = async (userId, rawCategory, amount, description, va
     category,
     amount: amt,
     description: desc,
+    expense_date: expenseDate,
   });
 
   const updatedCat = await categoryService.getCategoryByName(userId, category);
@@ -179,14 +181,20 @@ export const chat = asyncHandler(async (req, res) => {
         return res.status(422).json({ error: 'No expenses found in the request.' });
       }
 
+      // Resolve all dates up-front so they stay consistent throughout this request.
+      const resolvedExpenses = expenses.map((e) => ({
+        ...e,
+        date: resolveExpenseDate(e.date),
+      }));
+
       const user = await userService.findUserById(userId);
       if (!user) return res.status(404).json({ error: 'User not found.' });
 
       // Handle ambiguous expenses that need clarification
-      const ambiguous = expenses.filter(
+      const ambiguous = resolvedExpenses.filter(
         (e) => e.ambiguity === true && (e.amount === null || e.category === null)
       );
-      if (ambiguous.length > 0 && expenses.length === ambiguous.length) {
+      if (ambiguous.length > 0 && resolvedExpenses.length === ambiguous.length) {
         // All expenses are ambiguous — ask for clarification
         return res.status(200).json({
           intent: 'add_expense',
@@ -204,7 +212,7 @@ export const chat = asyncHandler(async (req, res) => {
       const warnings = [];
       const errors = [];
 
-      for (const exp of expenses) {
+      for (const exp of resolvedExpenses) {
         // Skip ambiguous items that are missing critical fields
         if (exp.ambiguity && (exp.amount === null || exp.category === null)) {
           errors.push({
@@ -221,7 +229,8 @@ export const chat = asyncHandler(async (req, res) => {
           exp.amount,
           exp.description,
           validCategories,
-          user
+          user,
+          exp.date  // already resolved above
         );
 
         if (result.success) {
@@ -236,14 +245,17 @@ export const chat = asyncHandler(async (req, res) => {
           });
           if (result.budgetWarning) warnings.push(result.budgetWarning);
         } else {
-          if (result.monthlyLimitExceeded && expenses.length === 1) {
+          if (result.monthlyLimitExceeded && resolvedExpenses.length === 1) {
+            return res.status(200).json({ ...result.data, expense_date: exp.date });
+          }
+          if (result.duplicate && resolvedExpenses.length === 1) {
             return res.status(200).json(result.data);
           }
-          if (result.duplicate && expenses.length === 1) {
-            return res.status(200).json(result.data);
-          }
-          if (result.confirmationRequired && expenses.length === 1) {
-            return res.status(200).json(result.data);
+          if (result.confirmationRequired && resolvedExpenses.length === 1) {
+            // Embed resolved date so confirm controller can persist it
+            const payload = { ...result.data };
+            payload.expense = { ...payload.expense, date: exp.date };
+            return res.status(200).json(payload);
           }
           errors.push({
             attempted: { category: exp.category, amount: exp.amount, description: exp.description },
@@ -253,7 +265,7 @@ export const chat = asyncHandler(async (req, res) => {
       }
 
       // Single expense — return in the format the frontend already understands
-      if (expenses.length === 1 && added.length === 1) {
+      if (resolvedExpenses.length === 1 && added.length === 1) {
         return res.status(201).json({
           intent: 'add_expense',
           success: true,
@@ -277,7 +289,7 @@ export const chat = asyncHandler(async (req, res) => {
         added,
         errors: errors.length > 0 ? errors : undefined,
         budgetWarnings: warnings.length > 0 ? warnings : undefined,
-        summary: `Added ${added.length} of ${expenses.length} expense(s).`,
+        summary: `Added ${added.length} of ${resolvedExpenses.length} expense(s).`,
       });
     }
 

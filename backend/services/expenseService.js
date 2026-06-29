@@ -58,16 +58,22 @@ export const addExpenseWithCategoryUpdate = async ({
   category,
   amount,
   description = null,
+  expense_date = null,
 }) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
-    // 1. Insert the expense (expense_date defaults to NOW()).
+    // 1. Insert the expense. Use the provided date or default to NOW().
     const [ins] = await connection.execute(
-      `INSERT INTO expenses (user_id, category, amount, description)
-       VALUES (?, ?, ?, ?)`,
-      [user_id, category, amount, description]
+      expense_date
+        ? `INSERT INTO expenses (user_id, category, amount, description, expense_date)
+           VALUES (?, ?, ?, ?, ?)`
+        : `INSERT INTO expenses (user_id, category, amount, description)
+           VALUES (?, ?, ?, ?)`,
+      expense_date
+        ? [user_id, category, amount, description, expense_date]
+        : [user_id, category, amount, description]
     );
 
     // 2. Add the amount to that category's running spent_amount.
@@ -148,6 +154,7 @@ export const transferFundsAndAddExpense = async ({
   fromCategory,
   amount,
   description = null,
+  expense_date = null,
 }) => {
   const connection = await pool.getConnection();
   try {
@@ -210,9 +217,14 @@ export const transferFundsAndAddExpense = async ({
 
     // 5. Insert the expense against the target category (full amount).
     const [ins] = await connection.execute(
-      `INSERT INTO expenses (user_id, category, amount, description)
-       VALUES (?, ?, ?, ?)`,
-      [user_id, toCategory, amount, description]
+      expense_date
+        ? `INSERT INTO expenses (user_id, category, amount, description, expense_date)
+           VALUES (?, ?, ?, ?, ?)`
+        : `INSERT INTO expenses (user_id, category, amount, description)
+           VALUES (?, ?, ?, ?)`,
+      expense_date
+        ? [user_id, toCategory, amount, description, expense_date]
+        : [user_id, toCategory, amount, description]
     );
 
     // 6. Bump the target category's spent_amount by the full amount.
