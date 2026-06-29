@@ -19,6 +19,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
 import recommendationRoutes from './routes/recommendationRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 const app = express();
@@ -47,6 +48,7 @@ app.use(
 app.use(express.json());    // Parse incoming JSON request bodies
 
 // ---- Routes ----
+app.use('/api/auth', authRoutes);           // Auth routes (register, login, logout, me)
 app.use('/api', healthRoutes);              // GET  /api/health
 app.use('/api', setupRoutes);               // POST /api/setup-budget
 app.use('/api/users', userRoutes);          // POST /api/users

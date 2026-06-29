@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setupBudget } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import BudgetTable from '../components/BudgetTable.jsx';
 import Alert from '../components/Alert.jsx';
 
-// Default recommended allocation percentages (must total 100%).
 const DEFAULT_ALLOCATIONS = [
   { category: 'Food', percentage: 30 },
   { category: 'Transport', percentage: 15 },
@@ -14,9 +14,6 @@ const DEFAULT_ALLOCATIONS = [
   { category: 'Miscellaneous', percentage: 5 },
 ];
 
-// Turn a monthly budget into recommended amounts.
-// The LAST category absorbs any rounding remainder so the amounts
-// always sum exactly to the budget (avoids instant validation errors).
 const buildRecommendations = (budget) => {
   let allocated = 0;
   return DEFAULT_ALLOCATIONS.map((item, index) => {
@@ -31,44 +28,32 @@ const buildRecommendations = (budget) => {
 
 export default function BudgetSetup() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // 'input' = enter name + budget, 'recommend' = review/edit categories
   const [step, setStep] = useState('input');
-
-  const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
   const [rows, setRows] = useState([]);
-
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const budgetNumber = Number(budget);
 
-  // Live total of all (possibly edited) category amounts.
   const total = useMemo(
     () => rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0),
     [rows]
   );
 
-  // --- Step 1: validate budget, then build recommendations ---
   const handleContinue = () => {
     setError('');
-
-    if (!name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
     if (isNaN(budgetNumber) || budgetNumber <= 0) {
       setError('Monthly budget must be greater than zero.');
       return;
     }
-
     setRows(buildRecommendations(budgetNumber));
     setStep('recommend');
   };
 
-  // --- Edit a single category amount ---
   const handleAmountChange = (index, value) => {
     setRows((prev) =>
       prev.map((row, i) =>
@@ -77,17 +62,14 @@ export default function BudgetSetup() {
     );
   };
 
-  // --- Step 2: validate edited amounts and save ---
   const handleAccept = async () => {
     setError('');
 
-    // No negative amounts.
     if (rows.some((r) => Number(r.amount) < 0)) {
       setError('Category amounts cannot be negative.');
       return;
     }
 
-    // Sum must equal the monthly budget.
     if (Math.abs(total - budgetNumber) > 0.01) {
       setError(
         `Category amounts add up to ${total.toLocaleString()}, but your budget is ${budgetNumber.toLocaleString()}. They must match.`
@@ -95,9 +77,7 @@ export default function BudgetSetup() {
       return;
     }
 
-    // Build the API payload.
     const payload = {
-      name: name.trim(),
       monthlyBudget: budgetNumber,
       categories: rows.map((r) => ({
         category: r.category,
@@ -107,22 +87,14 @@ export default function BudgetSetup() {
 
     try {
       setLoading(true);
-      const result = await setupBudget(payload);
-      // Remember which user we just created so the Dashboard can load them.
-      localStorage.setItem('budgetUserId', result.userId);
+      await setupBudget(payload);
       setSuccess('Budget setup completed successfully.');
-      // Briefly show the success message, then go to the dashboard.
-      // NOTE: we intentionally do NOT reset `loading` here — keeping the
-      // buttons disabled until navigation prevents a duplicate submission
-      // (a second click during the 1.5s window would create a second user).
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
-      // Prefer the backend's message; fall back to a generic one.
       setError(
         err.response?.data?.error ||
           'Something went wrong while saving. Please try again.'
       );
-      // Only re-enable on failure so the user can retry.
       setLoading(false);
     }
   };
@@ -134,12 +106,10 @@ export default function BudgetSetup() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0b0712] px-4 py-10">
-      {/* Decorative neon blobs */}
       <div className="pointer-events-none absolute -left-24 top-0 h-96 w-96 rounded-full bg-fuchsia-600/25 blur-[120px] animate-blob" />
       <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-purple-600/25 blur-[120px] animate-blob delay-200" />
 
       <div className="relative w-full max-w-xl animate-fade-in-up rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl backdrop-blur-xl">
-        {/* Header */}
         <div className="mb-3 flex justify-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 text-2xl shadow-lg shadow-fuchsia-500/40">
             💸
@@ -149,29 +119,15 @@ export default function BudgetSetup() {
           AI Personal Budget Assistant
         </h1>
         <p className="mt-2 text-center text-slate-400">
-          Let&apos;s set up your monthly budget.
+          {user?.name ? `Welcome, ${user.name}! ` : ''}Let&apos;s set up your monthly budget.
         </p>
 
         <div className="mt-6 space-y-4">
           {error && <Alert type="error">{error}</Alert>}
           {success && <Alert type="success">{success}</Alert>}
 
-          {/* ---------- STEP 1: INPUT ---------- */}
           {step === 'input' && (
             <>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-300">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Irtiza"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none focus:ring-1 focus:ring-fuchsia-500"
-                />
-              </div>
-
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-300">
                   Monthly Budget (PKR)
@@ -195,7 +151,6 @@ export default function BudgetSetup() {
             </>
           )}
 
-          {/* ---------- STEP 2: RECOMMENDATIONS ---------- */}
           {step === 'recommend' && (
             <>
               <p className="text-sm text-slate-400">

@@ -1,21 +1,14 @@
 // Controller for the first-time budget setup workflow.
-// Validates the full payload, then delegates the transactional save
-// to setupService.
+// Requires authentication — uses req.user.userId from JWT.
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import * as setupService from '../services/setupService.js';
 
-// Floating-point tolerance so that e.g. 49999.99 vs 50000 from rounding
-// doesn't wrongly fail the "sum must equal budget" check.
 const EPSILON = 0.01;
 
 // POST /api/setup-budget
 export const setupBudget = asyncHandler(async (req, res) => {
-  const { name, monthlyBudget, categories } = req.body;
-
-  // --- Validate name ---
-  if (!name || !String(name).trim()) {
-    return res.status(400).json({ error: 'Please enter your name.' });
-  }
+  const userId = req.user.userId;
+  const { monthlyBudget, categories } = req.body;
 
   // --- Validate monthly budget > 0 ---
   const budget = Number(monthlyBudget);
@@ -57,11 +50,7 @@ export const setupBudget = asyncHandler(async (req, res) => {
   }
 
   // Validation passed → save everything in one transaction.
-  const { userId } = await setupService.setupBudget({
-    name: String(name).trim(),
-    monthlyBudget: budget,
-    categories,
-  });
+  await setupService.setupBudgetForUser({ userId, monthlyBudget: budget, categories });
 
   res.status(201).json({
     message: 'Budget setup completed successfully.',

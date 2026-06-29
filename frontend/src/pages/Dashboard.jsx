@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import {
   getDashboard,
   getCategories,
@@ -34,10 +35,14 @@ const CATEGORY_COLORS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  // The current user's id is saved to localStorage after budget setup (Step 3).
-  // Fall back to user 1 so the dashboard is testable directly.
-  const userId = localStorage.getItem('budgetUserId') || 1;
+  const userId = user?.id;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const [summary, setSummary] = useState(null); // { monthlyBudget, totalSpent, remainingBudget }
   const [categories, setCategories] = useState([]);
@@ -205,18 +210,26 @@ export default function Dashboard() {
       <div className="relative mx-auto max-w-6xl px-4 py-10">
         {/* Header */}
         <header className="mb-8 animate-fade-in-up">
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 text-xl shadow-lg shadow-fuchsia-500/40">
-              💸
-            </span>
-            <div>
-              <h1 className="bg-gradient-to-r from-fuchsia-400 via-pink-400 to-purple-400 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent text-glow sm:text-3xl">
-                Your Budget Dashboard
-              </h1>
-              <p className="text-sm text-slate-400">
-                Track, manage, and get smart advice on your spending.
-              </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 text-xl shadow-lg shadow-fuchsia-500/40">
+                💸
+              </span>
+              <div>
+                <h1 className="bg-gradient-to-r from-fuchsia-400 via-pink-400 to-purple-400 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent text-glow sm:text-3xl">
+                  Your Budget Dashboard
+                </h1>
+                <p className="text-sm text-slate-400">
+                  {user?.name ? `Welcome, ${user.name} · ` : ''}Track, manage, and get smart advice on your spending.
+                </p>
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+            >
+              Logout
+            </button>
           </div>
         </header>
 
