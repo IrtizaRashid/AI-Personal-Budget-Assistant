@@ -12,9 +12,9 @@ export const config = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
   },
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  ollama: {
+    baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+    model: process.env.OLLAMA_MODEL || 'qwen2.5:3b',
   },
   corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173')
     .split(',')
