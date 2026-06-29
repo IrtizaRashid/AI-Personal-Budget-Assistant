@@ -4,7 +4,7 @@ import * as expenseService from '../services/expenseService.js';
 import * as categoryService from '../services/categoryService.js';
 import * as userService from '../services/userService.js';
 import { buildBudgetWarning } from '../utils/budgetWarning.js';
-import { resolveExpenseDate } from '../utils/dateParser.js';
+import { resolveExpenseDateTime } from '../utils/dateParser.js';
 
 // Helper: build the budget warning for a category's CURRENT state.
 const warningFor = async (userId, category) => {
@@ -109,7 +109,7 @@ export const confirmExpense = asyncHandler(async (req, res) => {
   const description = expense.description || expense.category;
   // Preserve the originally-resolved date so the confirmed expense lands on the
   // correct day, not the current time when the user clicked "confirm".
-  const expenseDate = resolveExpenseDate(expense.date || null);
+  const expenseDate = resolveExpenseDateTime(expense.date || null, expense.time || null);
 
   // Duplicate override: user confirmed "Add Anyway" — insert without re-checking
   // the duplicate, but still protect the overall budget.

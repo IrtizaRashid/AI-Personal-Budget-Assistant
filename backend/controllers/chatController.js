@@ -14,7 +14,7 @@ import {
   exceedsMonthlyBudget,
   monthlyBudgetExceeded,
 } from '../utils/monthlyBudget.js';
-import { resolveExpenseDate } from '../utils/dateParser.js';
+import { resolveExpenseDate, resolveExpenseDateTime } from '../utils/dateParser.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -181,10 +181,10 @@ export const chat = asyncHandler(async (req, res) => {
         return res.status(422).json({ error: 'No expenses found in the request.' });
       }
 
-      // Resolve all dates up-front so they stay consistent throughout this request.
+      // Resolve all dates + times up-front into full DATETIME strings.
       const resolvedExpenses = expenses.map((e) => ({
         ...e,
-        date: resolveExpenseDate(e.date),
+        date: resolveExpenseDateTime(e.date, e.time),
       }));
 
       const user = await userService.findUserById(userId);
@@ -252,9 +252,9 @@ export const chat = asyncHandler(async (req, res) => {
             return res.status(200).json(result.data);
           }
           if (result.confirmationRequired && resolvedExpenses.length === 1) {
-            // Embed resolved date so confirm controller can persist it
+            // Embed resolved datetime so confirm controller can persist it
             const payload = { ...result.data };
-            payload.expense = { ...payload.expense, date: exp.date };
+            payload.expense = { ...payload.expense, date: exp.date, time: exp.time || null };
             return res.status(200).json(payload);
           }
           errors.push({

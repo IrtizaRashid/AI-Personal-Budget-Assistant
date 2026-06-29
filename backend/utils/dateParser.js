@@ -1,6 +1,7 @@
-// Centralized date-parsing utility.
-// Converts any natural-language or absolute date string to YYYY-MM-DD.
+// Centralized date + time parsing utilities.
+// Converts natural-language date/time strings to normalized MySQL values.
 // Uses the server's local timezone throughout — no external dependencies.
+import { parseTime } from './timeParser.js';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -208,12 +209,31 @@ export const parseDate = (raw) => {
 
 /**
  * resolveExpenseDate(aiDate)
- *
- * Thin wrapper: if the AI returned null/undefined, use today.
- * If the AI returned a recognised string, parse it.
- * Always returns YYYY-MM-DD.
+ * Returns YYYY-MM-DD. Falls back to today if aiDate is null/unrecognised.
  */
 export const resolveExpenseDate = (aiDate) => {
   if (!aiDate) return fmt(localToday());
   return parseDate(aiDate);
+};
+
+// Current server time as HH:mm:ss.
+const currentTime = () => {
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+};
+
+/**
+ * resolveExpenseDateTime(dateStr, timeStr)
+ *
+ * Combines a (possibly relative) date string and a (possibly relative) time
+ * string into "YYYY-MM-DD HH:mm:ss" for MySQL DATETIME.
+ *
+ * - dateStr null/missing  → today's date
+ * - timeStr null/missing  → current server time
+ * - timeStr unrecognised  → current server time
+ */
+export const resolveExpenseDateTime = (dateStr, timeStr) => {
+  const datePart = resolveExpenseDate(dateStr);
+  const timePart = (timeStr ? parseTime(timeStr) : null) ?? currentTime();
+  return `${datePart} ${timePart}`;
 };

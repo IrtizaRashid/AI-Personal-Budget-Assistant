@@ -37,20 +37,24 @@ Categories: ${categoryList}
 - description: 1-4 words.
 - merchant: name if mentioned, else null.
 - payment_method: Cash/Card/EasyPaisa/JazzCash/Bank Transfer/null.
-- date: "yesterday"/"today"/date string/null.
+- date: extract the date as a string exactly as said ("yesterday","last Friday","5 June") or null.
+- time: extract the time as a string exactly as said ("3 PM","7:30 AM","this morning","noon") or null.
 - confidence: 0.00-1.00.
 - ambiguity: true if amount or category is unclear.
 - reasoning_type: direct/inferred/ambiguous.
 
 Schema:
-{"intent":"add_expense","expenses":[{"amount":500,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
+{"intent":"add_expense","expenses":[{"amount":500,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
 
 Examples:
 User: I spent 300 on pizza and 500 on petrol.
-{"intent":"add_expense","expenses":[{"amount":300,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":500,"currency":"PKR","category":"Transport","description":"Petrol","merchant":null,"payment_method":null,"location":null,"date":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
+{"intent":"add_expense","expenses":[{"amount":300,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":500,"currency":"PKR","category":"Transport","description":"Petrol","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
 
-User: Paid Rs 1,500 at KFC with EasyPaisa yesterday.
-{"intent":"add_expense","expenses":[{"amount":1500,"currency":"PKR","category":"Food","description":"KFC","merchant":"KFC","payment_method":"EasyPaisa","location":null,"date":"yesterday","confidence":0.98,"ambiguity":false,"reasoning_type":"direct"}]}
+User: Paid Rs 1,500 at KFC with EasyPaisa yesterday at 7 PM.
+{"intent":"add_expense","expenses":[{"amount":1500,"currency":"PKR","category":"Food","description":"KFC","merchant":"KFC","payment_method":"EasyPaisa","location":null,"date":"yesterday","time":"7 PM","confidence":0.98,"ambiguity":false,"reasoning_type":"direct"}]}
+
+User: I bought pizza yesterday at 7 PM and petrol today at 9 AM.
+{"intent":"add_expense","expenses":[{"amount":null,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":"yesterday","time":"7 PM","confidence":0.85,"ambiguity":true,"reasoning_type":"direct"},{"amount":null,"currency":"PKR","category":"Transport","description":"Petrol","merchant":null,"payment_method":null,"location":null,"date":"today","time":"9 AM","confidence":0.85,"ambiguity":true,"reasoning_type":"direct"}]}
 
 User: How much budget is left?
 {"intent":"remaining_budget"}
