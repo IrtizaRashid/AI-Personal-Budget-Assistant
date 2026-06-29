@@ -46,6 +46,20 @@ Categories: ${categoryList}
 Schema:
 {"intent":"add_expense","expenses":[{"amount":500,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
 
+ORDERED MAPPING ("respectively" / "in order" / "one by one"):
+When the user lists multiple activities AND multiple amounts with a word like "respectively", "in order", or "one by one":
+- Step 1: Extract activities in the order they appear.
+- Step 2: Extract amounts in the order they appear.
+- Step 3: If count(activities) == count(amounts), map activity[i] → amount[i] exactly. Do not reorder.
+- Step 4: If counts differ, set ambiguity:true and do not guess.
+
+Example:
+User: I bought clothes, paid electricity bill and ate at KFC for 100, 40 and 60 respectively.
+{"intent":"add_expense","expenses":[{"amount":100,"currency":"PKR","category":"Shopping","description":"Clothes","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":40,"currency":"PKR","category":"Bills","description":"Electricity Bill","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":60,"currency":"PKR","category":"Food","description":"KFC","merchant":"KFC","payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
+
+User: I paid rent, internet and electricity for 25000, 3000 and 4500 respectively.
+{"intent":"add_expense","expenses":[{"amount":25000,"currency":"PKR","category":"Bills","description":"Rent","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":3000,"currency":"PKR","category":"Utilities","description":"Internet Bill","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":4500,"currency":"PKR","category":"Utilities","description":"Electricity Bill","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
+
 Examples:
 User: I spent 300 on pizza and 500 on petrol.
 {"intent":"add_expense","expenses":[{"amount":300,"currency":"PKR","category":"Food","description":"Pizza","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"},{"amount":500,"currency":"PKR","category":"Transport","description":"Petrol","merchant":null,"payment_method":null,"location":null,"date":null,"time":null,"confidence":0.97,"ambiguity":false,"reasoning_type":"direct"}]}
