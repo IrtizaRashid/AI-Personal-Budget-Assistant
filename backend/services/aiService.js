@@ -37,7 +37,7 @@ export const geminiChat = async (systemPrompt, userContent, temperature = 0) => 
         ],
         stream: false,
         format: 'json',
-        options: { temperature, num_predict: 1024 },
+        options: { temperature, num_predict: 400 },
       }),
       signal: AbortSignal.timeout(120000),
     });
