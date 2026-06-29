@@ -98,6 +98,7 @@ Type rules:
 
 Rules:
 - Use exact percentages and amounts from the input data.
+- Always use "Rs" as the currency symbol. Never use "$" or "USD".
 - If total budget >80% used, include a global warning.
 - If overall <40% used, include at least one praise.
 - Never invent numbers or categories not in the data.
@@ -106,12 +107,14 @@ Rules:
 export const generateRecommendations = async (summary) => {
   const parsed = await geminiChat(RECOMMENDATIONS_PROMPT, JSON.stringify(summary), 0.4);
 
+  const fixCurrency = (s) => String(s).replace(/\$\s?/g, 'Rs ').trim();
+
   const list = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
   return list
     .filter((r) => r && typeof r === 'object' && r.title && r.detail)
     .map((r) => ({
-      title: String(r.title).trim(),
-      detail: String(r.detail).trim(),
+      title: fixCurrency(r.title),
+      detail: fixCurrency(r.detail),
       category: r.category || null,
       priority: ['critical', 'high', 'medium', 'low'].includes(r.priority) ? r.priority : 'medium',
       type: ['warning', 'tip', 'praise', 'insight'].includes(r.type) ? r.type : 'insight',
