@@ -9,13 +9,32 @@ import VoiceInput from './VoiceInput.jsx';
 // (The backend does the logic; the frontend only formats for display.)
 const buildAssistantMessage = (data) => {
   switch (data.intent) {
-    case 'add_expense':
+    case 'add_expense': {
+      // Clarification needed (ambiguous expense — missing amount or category)
+      if (data.status === 'clarification_needed') {
+        return { role: 'assistant', text: `🤔 ${data.message}` };
+      }
+      // Multiple expenses — data.added is an array
+      if (Array.isArray(data.added)) {
+        const lines = data.added
+          .map(
+            (e) =>
+              `• ${e.category} — ${formatPKR(e.amount)}${e.description ? ` (${e.description})` : ''}`
+          )
+          .join('\n');
+        const errorNote = data.errors?.length
+          ? `\n⚠️ ${data.errors.length} item(s) could not be added.`
+          : '';
+        return { role: 'assistant', text: `✅ ${data.summary}\n${lines}${errorNote}` };
+      }
+      // Single expense — category / amount at top level
       return {
         role: 'assistant',
-        text: `✅ Added ${data.category} expense of ${formatPKR(
-          data.amount
-        )}${data.description ? ` — ${data.description}` : ''}.`,
+        text: `✅ Added ${data.category} expense of ${formatPKR(data.amount)}${
+          data.description ? ` — ${data.description}` : ''
+        }.`,
       };
+    }
     case 'remaining_budget':
       return {
         role: 'assistant',
@@ -24,37 +43,51 @@ const buildAssistantMessage = (data) => {
     case 'remaining_category_budget':
       return {
         role: 'assistant',
-        text: `📊 ${data.category} budget remaining: ${formatPKR(
-          data.remaining
-        )}.`,
+        text: `📊 ${data.category} budget remaining: ${formatPKR(data.remaining)}.`,
       };
     case 'show_expenses':
       return {
         role: 'assistant',
-        text:
-          data.expenses.length === 0
-            ? 'You have no expenses yet.'
-            : 'Here are your expenses (newest first):',
+        text: data.expenses.length === 0 ? 'You have no expenses yet.' : 'Here are your expenses (newest first):',
         expenses: data.expenses,
       };
     case 'show_category_expenses':
       return {
         role: 'assistant',
-        text:
-          data.expenses.length === 0
-            ? `You have no ${data.category} expenses yet.`
-            : `Here are your ${data.category} expenses:`,
+        text: data.expenses.length === 0
+          ? `You have no ${data.category} expenses yet.`
+          : `Here are your ${data.category} expenses:`,
         expenses: data.expenses,
       };
     case 'show_today_expenses':
       return {
         role: 'assistant',
-        text:
-          data.expenses.length === 0
-            ? 'You have no expenses today.'
-            : "Here are today's expenses:",
+        text: data.expenses.length === 0 ? 'You have no expenses today.' : "Here are today's expenses:",
         expenses: data.expenses,
       };
+    case 'show_week_expenses':
+      return {
+        role: 'assistant',
+        text: data.expenses.length === 0 ? 'No expenses in the last 7 days.' : "Here are this week's expenses:",
+        expenses: data.expenses,
+      };
+    case 'show_month_expenses':
+      return {
+        role: 'assistant',
+        text: data.expenses.length === 0 ? 'No expenses this month.' : "Here are this month's expenses:",
+        expenses: data.expenses,
+      };
+    case 'budget_summary': {
+      const lines = (data.categories || [])
+        .map((c) => `• ${c.category}: ${formatPKR(c.spent)} / ${formatPKR(c.allocated)}`)
+        .join('\n');
+      return {
+        role: 'assistant',
+        text: `📊 Budget Summary\nTotal: ${formatPKR(data.monthlyBudget)} | Spent: ${formatPKR(
+          data.totalSpent
+        )} | Left: ${formatPKR(data.remainingBudget)}\n\n${lines}`,
+      };
+    }
     case 'delete_last_expense':
       return {
         role: 'assistant',
@@ -62,10 +95,19 @@ const buildAssistantMessage = (data) => {
           data.deleted.amount
         )}${data.deleted.description ? ` (${data.deleted.description})` : ''}.`,
       };
+    case 'delete_last_category_expense':
+      return {
+        role: 'assistant',
+        text: `🗑️ Deleted last ${data.deleted.category} expense: ${formatPKR(data.deleted.amount)}${
+          data.deleted.description ? ` (${data.deleted.description})` : ''
+        }.`,
+      };
+    case 'chat':
+      return { role: 'assistant', text: data.message || data.reply || "I'm here to help!" };
     case 'unknown':
       return { role: 'assistant', text: data.message };
     default:
-      return { role: 'assistant', text: 'Done.' };
+      return { role: 'assistant', text: data.message || 'Done.' };
   }
 };
 
@@ -158,14 +200,17 @@ export default function ChatBox({
       // If the data changed (expense added or deleted), refresh the
       // dashboard, category table and expense history (no page reload).
       const changesData =
-        data.intent === 'add_expense' || data.intent === 'delete_last_expense';
-      if (changesData && typeof onDataChanged === 'function') {
+        data.intent === 'add_expense' ||
+        data.intent === 'delete_last_expense' ||
+        data.intent === 'delete_last_category_expense';
+      if (changesData && data.status !== 'clarification_needed' && typeof onDataChanged === 'function') {
         onDataChanged();
       }
 
       // Surface any budget warning returned after recording the expense.
-      if (data.budgetWarning && typeof onWarning === 'function') {
-        onWarning(data.budgetWarning);
+      const warning = data.budgetWarning || data.budgetWarnings?.[0];
+      if (warning && typeof onWarning === 'function') {
+        onWarning(warning);
       }
     } catch (err) {
       const errorText =
