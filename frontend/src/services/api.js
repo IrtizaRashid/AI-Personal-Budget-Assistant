@@ -91,6 +91,112 @@ export const getRecommendations = async (userId) => {
   return data;
 };
 
+// ---- Budget allocation update ----
+
+// PUT /api/budget-allocation
+export const updateBudgetAllocation = async (payload) => {
+  const { data } = await api.put('/budget-allocation', payload);
+  return data;
+};
+
+// ---- Income ----
+
+// GET /api/income/:userId
+export const getIncome = async (userId) => {
+  const { data } = await api.get(`/income/${userId}`);
+  return data;
+};
+
+// POST /api/income
+export const createIncome = async (payload) => {
+  const { data } = await api.post('/income', payload);
+  return data;
+};
+
+// DELETE /api/income/:incomeId
+export const deleteIncomeRecord = async (incomeId) => {
+  const { data } = await api.delete(`/income/${incomeId}`);
+  return data;
+};
+
+// ---- Loans ----
+
+// GET /api/loans/:userId
+export const getLoans = async (userId) => {
+  const { data } = await api.get(`/loans/${userId}`);
+  return data;
+};
+
+// PUT /api/loans/:loanId/paid
+export const markLoanPaid = async (loanId) => {
+  const { data } = await api.put(`/loans/${loanId}/paid`);
+  return data;
+};
+
+// PUT /api/loans/:loanId
+export const updateLoan = async (loanId, payload) => {
+  const { data } = await api.put(`/loans/${loanId}`, payload);
+  return data;
+};
+
+// DELETE /api/loans/:loanId
+export const deleteLoan = async (loanId) => {
+  const { data } = await api.delete(`/loans/${loanId}`);
+  return data;
+};
+
+// GET /api/loans/:userId/summary
+export const getLoanSummary = async (userId) => {
+  const { data } = await api.get(`/loans/${userId}/summary`);
+  return data;
+};
+
+// GET /api/transactions/:userId
+export const getTransactions = async (userId) => {
+  const { data } = await api.get(`/transactions/${userId}`);
+  return data;
+};
+
+// GET /api/loans/:loanId/payments
+export const getLoanPayments = async (loanId) => {
+  const { data } = await api.get(`/loans/${loanId}/payments`);
+  return data;
+};
+
+// ---- Investments ----
+
+// GET /api/investments/:userId/portfolio
+export const getPortfolio = async (userId) => {
+  const { data } = await api.get(`/investments/${userId}/portfolio`);
+  return data;
+};
+
+// GET /api/investments/:userId/summary
+export const getInvestmentSummary = async (userId) => {
+  const { data } = await api.get(`/investments/${userId}/summary`);
+  return data;
+};
+
+// GET /api/investments/:userId/transactions
+export const getInvestmentTransactions = async (userId) => {
+  const { data } = await api.get(`/investments/${userId}/transactions`);
+  return data;
+};
+
+// ---- Universal AI Query ----
+
+// POST /api/ai/query
+export const universalQuery = async (payload) => {
+  const { data } = await api.post('/ai/query', payload);
+  return data;
+};
+
+// POST /api/loans/split
+export const createSplitExpense = async (payload) => {
+  const { data } = await api.post('/loans/split', payload);
+  return data;
+};
+
 // ---- Users ----
 
 // POST /api/users/:userId/reset-month

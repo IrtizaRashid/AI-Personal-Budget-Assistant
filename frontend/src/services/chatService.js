@@ -6,7 +6,7 @@ import api from './api.js';
 // Sends the user's natural-language message; the backend returns a
 // structured result (intent + data) which the ChatBox renders.
 export const sendChatMessage = async (userId, message) => {
-  const { data } = await api.post('/chat', { userId, message }, { timeout: 120000 });
+  const { data } = await api.post('/chat', { userId, message });
   return data;
 };
 

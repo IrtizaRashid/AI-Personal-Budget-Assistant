@@ -20,6 +20,11 @@ import statisticsRoutes from './routes/statisticsRoutes.js';
 import recommendationRoutes from './routes/recommendationRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import incomeRoutes from './routes/incomeRoutes.js';
+import loanRoutes from './routes/loanRoutes.js';
+import transactionRoutes from './routes/transactionRoutes.js';
+import investmentRoutes from './routes/investmentRoutes.js';
+import aiQueryRoutes from './routes/aiQueryRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 const app = express();
@@ -58,6 +63,11 @@ app.use('/api/dashboard', dashboardRoutes); // GET  /api/dashboard/:userId
 app.use('/api/statistics', statisticsRoutes); // GET /api/statistics/:userId
 app.use('/api/ai/recommendations', recommendationRoutes); // GET /api/ai/recommendations/:userId
 app.use('/api', chatRoutes);                // POST /api/chat
+app.use('/api/income', incomeRoutes);       // GET/POST/DELETE /api/income
+app.use('/api/loans', loanRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/investments', investmentRoutes);
+app.use('/api/ai', aiQueryRoutes);           // POST /api/ai/query — universal query engine
 
 // ---- Fallbacks ----
 app.use(notFound);          // Unknown route -> 404

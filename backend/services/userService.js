@@ -19,3 +19,23 @@ export const findUserById = async (id) => {
   );
   return rows[0];
 };
+
+// Increase a user's monthly_budget (loan repayment received — cash inflow).
+export const increaseBudget = async (userId, amount) => {
+  await pool.execute(
+    'UPDATE users SET monthly_budget = monthly_budget + ? WHERE id = ?',
+    [Number(amount), userId]
+  );
+  const user = await findUserById(userId);
+  return Number(user.monthly_budget);
+};
+
+// Decrease a user's monthly_budget (loan repayment made — cash outflow).
+export const decreaseBudget = async (userId, amount) => {
+  await pool.execute(
+    'UPDATE users SET monthly_budget = GREATEST(0, monthly_budget - ?) WHERE id = ?',
+    [Number(amount), userId]
+  );
+  const user = await findUserById(userId);
+  return Number(user.monthly_budget);
+};

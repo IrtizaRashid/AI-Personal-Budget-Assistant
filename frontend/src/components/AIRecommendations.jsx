@@ -38,6 +38,7 @@ export default function AIRecommendations({
   recommendations = [],
   loading = false,
   error = false,
+  healthScore = 82,
 }) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-purple-600 p-[1.5px] shadow-[0_0_30px_-8px_rgba(217,70,239,0.5)]">
@@ -47,8 +48,22 @@ export default function AIRecommendations({
             🤖
           </span>
           <h2 className="bg-gradient-to-r from-fuchsia-400 to-pink-400 bg-clip-text text-lg font-bold text-transparent">
-            AI Recommendations
+            Personalized financial guidance
           </h2>
+        </div>
+
+        {/* Financial Health Score */}
+        <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-300">Financial Health Score</span>
+            <span className="text-2xl font-bold text-emerald-400">{healthScore}/100</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-500"
+              style={{ width: `${healthScore}%` }}
+            />
+          </div>
         </div>
 
         {/* Loading */}

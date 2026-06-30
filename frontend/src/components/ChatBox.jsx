@@ -5,6 +5,173 @@ import ConfirmationCard from './ConfirmationCard.jsx';
 import DuplicateCard from './DuplicateCard.jsx';
 import VoiceInput from './VoiceInput.jsx';
 import ReallocationReviewCard from './ReallocationReviewCard.jsx';
+import SharedSplitCard from './SharedSplitCard.jsx';
+
+// Renders a rich AI query answer — handles bullet points, numbered lists, line breaks.
+const RichAnswer = ({ text, meta }) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={i} className="h-1" />;
+        // Bullet point
+        if (/^[-•*]\s/.test(trimmed)) {
+          return (
+            <div key={i} className="flex gap-2">
+              <span className="mt-0.5 shrink-0 text-fuchsia-400">•</span>
+              <span className="text-sm text-slate-200">{trimmed.replace(/^[-•*]\s/, '')}</span>
+            </div>
+          );
+        }
+        // Numbered list
+        if (/^\d+\.\s/.test(trimmed)) {
+          const num = trimmed.match(/^\d+/)[0];
+          return (
+            <div key={i} className="flex gap-2">
+              <span className="shrink-0 text-xs font-bold text-fuchsia-400 mt-0.5">{num}.</span>
+              <span className="text-sm text-slate-200">{trimmed.replace(/^\d+\.\s/, '')}</span>
+            </div>
+          );
+        }
+        // Bold-ish headers (all caps or ending with colon)
+        if (/^[A-Z][A-Z\s]+:?$/.test(trimmed) || trimmed.endsWith(':')) {
+          return <p key={i} className="text-xs font-semibold uppercase tracking-wide text-fuchsia-300 mt-2">{trimmed}</p>;
+        }
+        // Regular line
+        return <p key={i} className="text-sm text-slate-200 leading-relaxed">{trimmed}</p>;
+      })}
+      {meta?.modules?.length > 0 && (
+        <p className="mt-2 text-[10px] text-slate-500">
+          Sources: {meta.modules.join(', ')}{meta.dateRange ? ` · ${meta.dateRange}` : ''}{meta.person ? ` · about ${meta.person}` : ''}
+        </p>
+      )}
+    </div>
+  );
+};
+
+// Shown when an investment_buy fails because Savings balance is insufficient.
+// Offers two choices: cancel the investment, or transfer from another category.
+const InsufficientSavingsCard = ({ data, categories = [], userId, onCancelled, onInvested }) => {
+  const { available = 0, required = 0, shortfall = 0, savingsCategory = 'Savings', pending } = data;
+  const [step, setStep]       = useState('prompt'); // 'prompt' | 'transfer' | 'loading'
+  const [fromCat, setFromCat] = useState('');
+  const [transferAmt, setTransferAmt] = useState(String(shortfall > 0 ? shortfall : ''));
+  const [errMsg, setErrMsg]   = useState('');
+
+  const otherCats = categories
+    .filter(c => !c.category?.toLowerCase().includes('saving') && (c.remaining ?? 0) > 0)
+    .map(c => ({ name: c.category, remaining: c.remaining }));
+
+  const handleTransfer = async () => {
+    setErrMsg('');
+    if (!fromCat) { setErrMsg('Select a category.'); return; }
+    const amt = Number(transferAmt);
+    if (!amt || amt <= 0) { setErrMsg('Enter a valid amount.'); return; }
+    if (amt < shortfall) { setErrMsg(`Need at least Rs ${shortfall.toLocaleString()} to cover the shortfall.`); return; }
+    setStep('loading');
+    try {
+      // 1. Transfer to Savings
+      const tr = await fetch('/api/categories/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, fromCategory: fromCat, amount: amt }),
+      });
+      const trData = await tr.json();
+      if (!trData.success) throw new Error(trData.message || 'Transfer failed.');
+
+      // 2. Retry investment (savings now funded)
+      const inv = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          message: `invest ${pending.amount} in ${pending.name}${pending.type ? ` (${pending.type})` : ''}`,
+          _skipSavingsCheck: true,
+        }),
+      });
+      const invData = await inv.json();
+      if (!invData.success) throw new Error(invData.message || 'Investment failed after transfer.');
+      onInvested(invData);
+    } catch (err) {
+      setErrMsg(err.message);
+      setStep('transfer');
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-amber-300 font-medium">
+        ⚠️ Insufficient Savings — you have <span className="text-white font-semibold">Rs {Number(available).toLocaleString()}</span> but need <span className="text-white font-semibold">Rs {Number(required).toLocaleString()}</span> (shortfall: Rs {Number(shortfall).toLocaleString()}).
+      </p>
+      <p className="text-slate-400 text-xs">Investments can only be funded from the {savingsCategory} category.</p>
+
+      {step === 'prompt' && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setStep('transfer')}
+            className="flex-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-purple-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 transition"
+          >
+            Transfer from another category
+          </button>
+          <button
+            onClick={onCancelled}
+            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition"
+          >
+            Cancel investment
+          </button>
+        </div>
+      )}
+
+      {step === 'transfer' && (
+        <div className="space-y-2">
+          <div>
+            <label className="block text-[10px] text-slate-400 uppercase tracking-wide mb-1">Transfer from</label>
+            <select
+              value={fromCat}
+              onChange={e => setFromCat(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#1a0d2e] px-3 py-2 text-xs text-white focus:border-fuchsia-500 focus:outline-none"
+            >
+              <option value="">— pick a category —</option>
+              {otherCats.map(c => (
+                <option key={c.name} value={c.name}>
+                  {c.name} (Rs {Number(c.remaining).toLocaleString()} available)
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] text-slate-400 uppercase tracking-wide mb-1">Amount to transfer (Rs)</label>
+            <input
+              type="number" min="1"
+              value={transferAmt}
+              onChange={e => setTransferAmt(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#1a0d2e] px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none"
+              placeholder={`Min Rs ${Number(shortfall).toLocaleString()}`}
+            />
+          </div>
+          {errMsg && <p className="text-xs text-red-400">{errMsg}</p>}
+          <div className="flex gap-2">
+            <button onClick={handleTransfer} className="flex-1 rounded-lg bg-gradient-to-r from-fuchsia-600 to-purple-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 transition">
+              Transfer & Invest
+            </button>
+            <button onClick={onCancelled} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 'loading' && (
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-fuchsia-400" />
+          Transferring and investing…
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Turn the backend's structured response into a friendly assistant message.
 // (The backend does the logic; the frontend only formats for display.)
@@ -108,29 +275,85 @@ const buildAssistantMessage = (data) => {
         return { role: 'assistant', text: `💰 ${data.message}` };
       }
       if (data.status === 'review_allocations') {
-        return { 
-          role: 'assistant', 
+        return {
+          role: 'assistant',
           text: `💰 ${data.message}`,
           type: 'reallocation_review',
-          reallocation: data.reallocation
+          reallocation: data.reallocation,
         };
       }
-      return { role: 'assistant', text: data.message };
+      return { role: 'assistant', text: data.message || 'Income recorded.' };
     }
-    case 'income_received': {
-      if (data.status === 'missing_amount') {
-        return { role: 'assistant', text: data.message };
-      }
-      const src = data.source ? ` (${data.source})` : '';
-      const cats = Array.isArray(data.categories)
-        ? '\n' + data.categories.map(c =>
-            `  • ${c.category_name}: Rs ${Number(c.allocated_amount).toLocaleString()}`
-          ).join('\n')
-        : '';
+    case 'shared_expense': {
+      if (data.status === 'missing_amount') return { role: 'assistant', text: `🤝 ${data.message}` };
+      const loanLines = (data.loans || []).map(l => `  • ${l.person_name} owes you ${formatPKR(l.amount)}`).join('\n');
       return {
         role: 'assistant',
-        text: `✅ Rs ${Number(data.amount).toLocaleString()}${src} added to your budget!\n\nNew total budget: Rs ${Number(data.newBudget).toLocaleString()}\nPrevious budget: Rs ${Number(data.previousBudget).toLocaleString()}\n\nUpdated category allocations:${cats}`,
+        text: `🤝 ${data.message}${loanLines ? '\n\nLoans created:\n' + loanLines : ''}${data.myShare ? `\n\nYour share: ${formatPKR(data.myShare)}` : ''}`,
       };
+    }
+    case 'loan_given':
+      return { role: 'assistant', text: `🤝 ${data.message || 'Loan recorded.'}` };
+    case 'loan_taken':
+      return { role: 'assistant', text: `💸 ${data.message || 'Loan recorded.'}` };
+    case 'loan_repaid': {
+      if (!data.success && !data.results) return { role: 'assistant', text: `ℹ️ ${data.message}` };
+
+      // Multi-person result
+      if (Array.isArray(data.results)) {
+        const lines = data.results.map(r => {
+          if (!r.success) return `⚠️ ${r.message}`;
+          return r.fullyPaid
+            ? `✅ ${r.message}`
+            : `🔄 ${r.message}`;
+        });
+        return { role: 'assistant', text: lines.join('\n') };
+      }
+
+      // Single person result
+      const lines = [
+        `✅ ${data.message}`,
+        ``,
+        `Person: ${data.person}`,
+        `Amount: ${formatPKR(data.amountReceived)}`,
+        data.fullyPaid
+          ? `Remaining: Rs 0  |  Status: Fully Paid ✅`
+          : `Remaining: ${formatPKR(data.remaining)}  |  Status: Partially Paid`,
+      ];
+      return { role: 'assistant', text: lines.join('\n') };
+    }
+    case 'show_loans': {
+      const list = data.loans || [];
+      if (list.length === 0) return { role: 'assistant', text: 'No loans on record.', type: 'show_loans', loans: [] };
+      return { role: 'assistant', text: null, type: 'show_loans', loans: list };
+    }
+    case 'ai_query':
+      if (!data.success) return { role: 'assistant', text: `⚠️ ${data.answer || data.message}` };
+      return {
+        role: 'assistant',
+        text: data.answer,
+        isRichAnswer: true,
+        meta: data.meta,
+      };
+    case 'investment_buy':
+      if (!data.success) return { role: 'assistant', text: `⚠️ ${data.message}` };
+      return { role: 'assistant', text: `📈 ${data.message}` };
+    case 'investment_sell':
+      if (!data.success) return { role: 'assistant', text: `⚠️ ${data.message}` };
+      return { role: 'assistant', text: `📉 ${data.message}` };
+    case 'investment_dividend':
+      if (!data.success) return { role: 'assistant', text: `⚠️ ${data.message}` };
+      return { role: 'assistant', text: `💹 ${data.message}` };
+    case 'show_investments': {
+      const { investments = [], summary: invSum = {} } = data;
+      if (investments.length === 0) return { role: 'assistant', text: 'No investments on record. Try: "I invested 5000 in Apple"' };
+      const lines = investments.map(inv => {
+        const pl = Number(inv.profit_loss || 0);
+        const sign = pl >= 0 ? '+' : '';
+        return `• ${inv.name} (${inv.type}) — ${formatPKR(inv.invested_amount)} invested · P&L: ${sign}${formatPKR(pl)} (${sign}${inv.return_pct}%)`;
+      }).join('\n');
+      const header = `📊 Portfolio — ${investments.length} position(s) · Total invested: ${formatPKR(invSum.totalInvested || 0)}`;
+      return { role: 'assistant', text: `${header}\n${lines}` };
     }
     case 'chat':
       return { role: 'assistant', text: data.message || data.reply || "I'm here to help!" };
@@ -140,6 +363,36 @@ const buildAssistantMessage = (data) => {
       return { role: 'assistant', text: data.message || 'Done.' };
   }
 };
+
+// Compact loan list rendered inside the chat bubble for show_loans intent.
+function LoanList({ loans = [] }) {
+  if (loans.length === 0) return <p className="text-slate-400 text-xs">No loans on record.</p>;
+
+  const given = loans.filter((l) => l.type === 'given');
+  const taken = loans.filter((l) => l.type === 'taken');
+
+  const Section = ({ title, icon, items, amountClass }) =>
+    items.length === 0 ? null : (
+      <div className="mb-2">
+        <p className="mb-1 text-xs font-semibold text-slate-400 uppercase tracking-wide">{icon} {title}</p>
+        {items.map((l) => (
+          <div key={l.id} className="flex justify-between gap-3 border-t border-white/10 py-1 text-xs">
+            <span className="text-slate-300">{l.person_name}{l.description ? ` · ${l.description}` : ''}</span>
+            <span className={`font-semibold shrink-0 ${amountClass} ${l.status === 'paid' ? 'line-through opacity-50' : ''}`}>
+              {formatPKR(l.amount)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+
+  return (
+    <div className="mt-1">
+      <Section title="Owed to You" icon="💰" items={given} amountClass="text-emerald-400" />
+      <Section title="You Owe" icon="💸" items={taken} amountClass="text-red-400" />
+    </div>
+  );
+}
 
 // Props:
 //   userId         : current user's id
@@ -218,19 +471,49 @@ export default function ChatBox({
         return;
       }
 
+      // Shared expense — split type not yet known; show split picker
+      if (data.intent === 'shared_expense' && data.status === 'split_needed') {
+        const names = (data.people || []).join(' and ');
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            type: 'split_needed',
+            expense: data,
+            text: `🤝 ${names ? `You and ${names}` : 'Multiple people'} shared ${data.description || 'an expense'} for ${formatPKR(data.total)}. How would you like to split it?`,
+          },
+        ]);
+        return;
+      }
+
+      // Insufficient savings for an investment — show 2-option card
+      if (data.intent === 'investment_buy' && !data.success && data.reason === 'insufficient_savings') {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', type: 'insufficient_savings', savingsData: data },
+        ]);
+        return;
+      }
+
       const assistantMsg = buildAssistantMessage(data);
       setMessages((prev) => [...prev, assistantMsg]);
 
       // Optionally read the reply aloud.
       if (speakResponses) speak(assistantMsg.text);
 
-      // If the data changed (expense added or deleted), refresh the
-      // dashboard, category table and expense history (no page reload).
+      // Refresh dashboard after any data-changing intent
       const changesData =
         data.intent === 'add_expense' ||
         data.intent === 'delete_last_expense' ||
         data.intent === 'delete_last_category_expense' ||
-        (data.intent === 'income_received' && data.success);
+        (data.intent === 'shared_expense' && data.success) ||
+        (data.intent === 'loan_given' && data.success) ||
+        (data.intent === 'loan_taken' && data.success) ||
+        (data.intent === 'loan_repaid' && data.success) ||
+        (data.intent === 'income_received' && data.status === 'saved') ||
+        (data.intent === 'investment_buy' && data.success) ||
+        (data.intent === 'investment_sell' && data.success) ||
+        (data.intent === 'investment_dividend' && data.success);
       if (changesData && data.status !== 'clarification_needed' && typeof onDataChanged === 'function') {
         onDataChanged();
       }
@@ -328,7 +611,7 @@ export default function ChatBox({
                   : 'bg-white/10 text-slate-200'
               }`}
             >
-              {/* Interactive cards (insufficient budget / duplicate / reallocation) */}
+              {/* Interactive cards */}
               {msg.type === 'confirmation' ? (
                 <ConfirmationCard
                   userId={userId}
@@ -350,8 +633,56 @@ export default function ChatBox({
                   onSaved={onReallocationSaved}
                   onCancelled={() => setMessages(prev => [...prev, { role: 'assistant', text: 'Reallocation cancelled.' }])}
                 />
+              ) : msg.type === 'split_needed' ? (
+                <>
+                  <p className="mb-2">{msg.text}</p>
+                  <SharedSplitCard
+                    expense={msg.expense}
+                    userId={userId}
+                    onSaved={(result) => {
+                      setMessages((prev) => [
+                        ...prev.slice(0, i),
+                        { role: 'assistant', text: `✅ ${result.message || 'Expense split and recorded.'}` },
+                        ...prev.slice(i + 1),
+                      ]);
+                      onDataChanged?.();
+                    }}
+                    onCancelled={() =>
+                      setMessages((prev) => [
+                        ...prev.slice(0, i),
+                        { role: 'assistant', text: 'Split cancelled.' },
+                        ...prev.slice(i + 1),
+                      ])
+                    }
+                  />
+                </>
+              ) : msg.type === 'insufficient_savings' ? (
+                <InsufficientSavingsCard
+                  data={msg.savingsData}
+                  categories={categories}
+                  userId={userId}
+                  onCancelled={() =>
+                    setMessages((prev) => [
+                      ...prev.slice(0, i),
+                      { role: 'assistant', text: 'Investment cancelled.' },
+                      ...prev.slice(i + 1),
+                    ])
+                  }
+                  onInvested={(result) => {
+                    setMessages((prev) => [
+                      ...prev.slice(0, i),
+                      { role: 'assistant', text: `📈 ${result.message}` },
+                      ...prev.slice(i + 1),
+                    ]);
+                    onDataChanged?.();
+                  }}
+                />
+              ) : msg.type === 'show_loans' ? (
+                <LoanList loans={msg.loans} />
+              ) : msg.isRichAnswer ? (
+                <RichAnswer text={msg.text} meta={msg.meta} />
               ) : (
-                <p>{msg.text}</p>
+                <p className="whitespace-pre-wrap">{msg.text}</p>
               )}
 
               {/* Optional expense list for the show_expenses intent */}

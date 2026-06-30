@@ -6,7 +6,7 @@ A full-stack web app to set up a monthly budget, track expenses, and **manage ev
 
 ## 📋 Description
 
-After a one-time budget setup, you get a dark, modern dashboard with summary cards, charts, and a searchable expense history. An integrated AI assistant (powered by **Groq**) understands plain-English commands to add, view, and delete expenses — while **all calculations and database operations are performed by the backend**, never the AI.
+After a one-time budget setup, you get a dark, modern dashboard with summary cards, charts, and a searchable expense history. An integrated AI assistant (powered by local **Ollama** using `qwen2.5:3b`) understands plain-English commands to add, view, and delete expenses — while **all calculations and database operations are performed by the backend**, never the AI.
 
 ---
 
@@ -30,7 +30,7 @@ After a one-time budget setup, you get a dark, modern dashboard with summary car
 | HTTP      | Axios                                    |
 | Backend   | Node.js, Express.js                      |
 | Database  | MySQL (mysql2)                           |
-| AI        | Groq (`groq-sdk`)                        |
+| AI        | Ollama (`qwen2.5:3b`)                    |
 
 **Deployment:** Frontend → **Vercel**, Backend → **Render**, Database → **Railway MySQL**.
 
@@ -69,7 +69,7 @@ budget-ai/
 
 ## ⚙️ Installation
 
-**Prerequisites:** Node.js 18+, MySQL 8+, and a free [Groq](https://console.groq.com) API key.
+**Prerequisites:** Node.js 18+, MySQL 8+, and [Ollama](https://ollama.com) with `qwen2.5:3b` pulled locally.
 
 ```bash
 git clone https://github.com/IrtizaRashid/AI-Personal-Budget-Assistant.git
@@ -83,6 +83,9 @@ mysql -u root -p budget_ai < database/schema.sql
 
 # Backend
 cd backend && npm install && cp .env.example .env   # edit values
+
+# AI model
+ollama pull qwen2.5:3b
 
 # Frontend
 cd ../frontend && npm install && cp .env.example .env   # set VITE_API_URL=http://localhost:5001
@@ -104,8 +107,8 @@ cd ../frontend && npm install && cp .env.example .env   # set VITE_API_URL=http:
 | `DB_USER`       | MySQL user                                   | `root` |
 | `DB_PASSWORD`   | MySQL password                               | `secret` |
 | `DB_NAME`       | Database name                                | `budget_ai` |
-| `GROQ_API_KEY`  | Groq API key (**backend only**)              | `gsk_...` |
-| `GROQ_MODEL`    | Groq model                                   | `llama-3.3-70b-versatile` |
+| `OLLAMA_BASE_URL` | Ollama server URL                         | `http://localhost:11434` |
+| `OLLAMA_MODEL`  | Ollama model                                 | `qwen2.5:3b` |
 
 **Frontend (`frontend/.env`)**
 
@@ -144,7 +147,7 @@ Open **http://localhost:5173**. (Voice input needs Chrome/Edge + microphone perm
 2. **Root Directory:** `backend`
 3. **Build Command:** `npm install`
 4. **Start Command:** `npm start`
-5. **Environment Variables** (from Railway + Groq):
+5. **Environment Variables** (from Railway + Ollama):
    | Key | Value |
    |---|---|
    | `NODE_ENV` | `production` |
@@ -154,8 +157,8 @@ Open **http://localhost:5173**. (Voice input needs Chrome/Edge + microphone perm
    | `DB_USER` | Railway `MYSQLUSER` |
    | `DB_PASSWORD` | Railway `MYSQLPASSWORD` |
    | `DB_NAME` | Railway `MYSQLDATABASE` |
-   | `GROQ_API_KEY` | your Groq key |
-   | `GROQ_MODEL` | `llama-3.3-70b-versatile` |
+   | `OLLAMA_BASE_URL` | your Ollama server URL |
+   | `OLLAMA_MODEL` | `qwen2.5:3b` |
 
    *(Render sets `PORT` automatically — the app reads it.)*
 6. Deploy, then note the URL, e.g. `https://your-backend.onrender.com`.
@@ -176,7 +179,7 @@ Open **http://localhost:5173**. (Voice input needs Chrome/Edge + microphone perm
 | **CORS error** in browser console | Set Render `CORS_ORIGIN` to the exact Vercel URL (no trailing slash) and redeploy. |
 | Frontend calls `localhost` in prod | `VITE_API_URL` wasn't set at **build** time on Vercel — set it and redeploy. |
 | `⚠️ MySQL not connected` | Check `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME` match Railway's variables. |
-| AI replies fail | Verify `GROQ_API_KEY` on Render and that you have Groq quota. |
+| AI replies fail | Verify Ollama is reachable at `OLLAMA_BASE_URL` and that `qwen2.5:3b` is pulled. |
 | 404 on API routes | Confirm `VITE_API_URL` has **no** trailing slash and no `/api` suffix (the client adds `/api`). |
 
 ---

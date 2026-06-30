@@ -6,13 +6,12 @@ import {
   deleteExpense,
   confirmExpense,
 } from '../controllers/expenseController.js';
-import { authenticate } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-router.post('/confirm', authenticate, confirmExpense);    // POST   /api/expenses/confirm
-router.post('/', authenticate, createExpense);            // POST   /api/expenses
-router.get('/:userId', authenticate, getExpenses);        // GET    /api/expenses/:userId
-router.delete('/:expenseId', authenticate, deleteExpense); // DELETE /api/expenses/:expenseId
+router.post('/confirm', confirmExpense);    // POST   /api/expenses/confirm
+router.post('/', createExpense);            // POST   /api/expenses
+router.get('/:userId', getExpenses);        // GET    /api/expenses/:userId
+router.delete('/:expenseId', deleteExpense); // DELETE /api/expenses/:expenseId
 
 export default router;

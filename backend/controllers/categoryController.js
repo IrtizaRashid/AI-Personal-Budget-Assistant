@@ -30,6 +30,18 @@ export const createCategories = asyncHandler(async (req, res) => {
   });
 });
 
+// POST /api/categories/transfer
+// Body: { userId, fromCategory, amount }
+// Moves allocated_amount from one category into Savings.
+export const transferToSavings = asyncHandler(async (req, res) => {
+  const { userId, fromCategory, amount } = req.body;
+  if (!userId || !fromCategory || !amount) {
+    return res.status(400).json({ message: 'userId, fromCategory, and amount are required.' });
+  }
+  const result = await categoryService.transferToSavings(userId, fromCategory, Number(amount));
+  res.status(200).json({ success: true, ...result });
+});
+
 // GET /api/categories/:userId
 // Returns each category with a CALCULATED remaining_amount.
 export const getCategories = asyncHandler(async (req, res) => {

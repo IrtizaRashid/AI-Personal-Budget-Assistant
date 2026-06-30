@@ -228,12 +228,18 @@ const currentTime = () => {
  * Combines a (possibly relative) date string and a (possibly relative) time
  * string into "YYYY-MM-DD HH:mm:ss" for MySQL DATETIME.
  *
- * - dateStr null/missing  → today's date
- * - timeStr null/missing  → current server time
- * - timeStr unrecognised  → current server time
+ * Fallback rules (professional behaviour):
+ *   - date given, time given     → parsed date + parsed time
+ *   - date given, time missing   → parsed date + 00:00:00  (midnight — start of that day)
+ *   - date missing, time given   → today        + parsed time
+ *   - date missing, time missing → today        + current server time
+ *
+ * Anchoring to midnight when a date is named but no time is given prevents
+ * timestamps like "yesterday at 14:37" when the user just said "yesterday".
  */
 export const resolveExpenseDateTime = (dateStr, timeStr) => {
   const datePart = resolveExpenseDate(dateStr);
-  const timePart = (timeStr ? parseTime(timeStr) : null) ?? currentTime();
+  const resolvedTime = timeStr ? parseTime(timeStr) : null;
+  const timePart = resolvedTime ?? (dateStr ? '00:00:00' : currentTime());
   return `${datePart} ${timePart}`;
 };

@@ -39,15 +39,37 @@ export const getRecommendations = asyncHandler(async (req, res) => {
     };
   });
 
-  // Only a small, summarised slice of data is sent to the AI.
+  // Aggregate per-category expense counts so the AI can spot activity patterns.
+  const expenseCountByCategory = expenses.reduce((acc, e) => {
+    acc[e.category] = (acc[e.category] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Enrich each category with expense count and a clear status flag.
+  const categoriesEnriched = categories
+    .map((c) => ({
+      ...c,
+      expenseCount: expenseCountByCategory[c.category] || 0,
+      status:
+        c.spentPercent >= 100 ? 'OVER_BUDGET' :
+        c.spentPercent >= 75  ? 'NEAR_LIMIT'  :
+        c.spentPercent >= 50  ? 'MODERATE'    :
+        c.spentPercent > 0    ? 'LOW'         : 'UNUSED',
+    }))
+    .sort((a, b) => b.spentPercent - a.spentPercent); // highest usage first
+
   const summary = {
     monthlyBudget,
     totalSpent,
     remainingBudget: monthlyBudget - totalSpent,
     budgetUsedPercent:
       monthlyBudget > 0 ? Math.round((totalSpent / monthlyBudget) * 100) : 0,
-    categories,
-    recentExpenses: expenses.slice(0, 5).map((e) => ({
+    // Full per-category breakdown — the AI must address each category
+    categories: categoriesEnriched,
+    overBudgetCategories:  categoriesEnriched.filter((c) => c.status === 'OVER_BUDGET').map((c) => c.category),
+    nearLimitCategories:   categoriesEnriched.filter((c) => c.status === 'NEAR_LIMIT').map((c) => c.category),
+    unusedCategories:      categoriesEnriched.filter((c) => c.status === 'UNUSED').map((c) => c.category),
+    recentExpenses: expenses.slice(0, 8).map((e) => ({
       category: e.category,
       amount: Number(e.amount),
       description: e.description,

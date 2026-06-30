@@ -2,14 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Smoother fonts + dark base so there's no white flash */
+/* Smoother fonts */
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dark mode base (default) */
+html.dark body {
+  background-color: #0d0d1a;
+  color: #f1f5f9;
+}
+
+/* Light mode base */
+html:not(.dark) body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Fallback for pages that haven't been switched yet */
 body {
-  background-color: #0b0712;
+  background-color: #0d0d1a;
   color: #e2e8f0;
 }
 
@@ -50,10 +63,13 @@ body {
   animation: blob 14s ease-in-out infinite;
 }
 
-/* Prettier, slimmer scrollbars (chat history etc.) */
+/* Prettier, slimmer scrollbars */
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
   background: rgba(100, 116, 139, 0.3);
@@ -61,4 +77,9 @@ body {
 }
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.5);
+}
+
+/* Sidebar transition */
+.sidebar-transition {
+  transition: width 0.25s ease;
 }

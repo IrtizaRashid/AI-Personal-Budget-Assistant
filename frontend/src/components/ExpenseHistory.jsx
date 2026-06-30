@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { deleteExpense } from '../services/api.js';
-import { formatPKR, formatDate } from '../utils/format.js';
+import { formatPKR, formatDateCompact } from '../utils/format.js';
 import ConfirmDialog from './ConfirmDialog.jsx';
 
 // Expense history table with search + delete.
@@ -20,7 +20,7 @@ export default function ExpenseHistory({ expenses = [], onChanged }) {
     const q = query.trim().toLowerCase();
     if (!q) return expenses;
     return expenses.filter((e) => {
-      const date = formatDate(e.expense_date).toLowerCase();
+      const date = formatDateCompact(e.expense_date).toLowerCase();
       return (
         e.category.toLowerCase().includes(q) ||
         (e.description || '').toLowerCase().includes(q) ||
@@ -71,36 +71,36 @@ export default function ExpenseHistory({ expenses = [], onChanged }) {
         </div>
       )}
 
-      {/* Table (scrolls horizontally on small screens) */}
-      <div className="overflow-x-auto">
+      {/* Table — scrollable vertically so it stays tall without pushing other panels */}
+      <div className="overflow-auto max-h-[680px]">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-white/5 text-slate-400">
+          <thead className="sticky top-0 z-10 bg-[#100a1a] text-slate-400">
             <tr>
-              <th className="px-6 py-3 font-medium">Date</th>
-              <th className="px-6 py-3 font-medium">Description</th>
-              <th className="px-6 py-3 font-medium">Category</th>
-              <th className="px-6 py-3 text-right font-medium">Amount</th>
-              <th className="px-6 py-3 text-right font-medium">Actions</th>
+              <th className="px-4 py-2.5 font-medium">Date</th>
+              <th className="px-4 py-2.5 font-medium">Description</th>
+              <th className="px-4 py-2.5 font-medium">Category</th>
+              <th className="px-4 py-2.5 text-right font-medium">Amount</th>
+              <th className="px-4 py-2.5 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {filtered.map((e) => (
               <tr key={e.id} className="transition hover:bg-white/5">
-                <td className="px-6 py-4 text-slate-400">
-                  {formatDate(e.expense_date)}
+                <td className="px-4 py-2.5 text-xs text-slate-400 whitespace-nowrap">
+                  {formatDateCompact(e.expense_date)}
                 </td>
-                <td className="px-6 py-4 font-medium text-slate-200">
+                <td className="px-4 py-2.5 font-medium text-slate-200">
                   {e.description || '—'}
                 </td>
-                <td className="px-6 py-4">
-                  <span className="rounded-full bg-fuchsia-500/15 px-2.5 py-1 text-xs font-medium text-fuchsia-300">
+                <td className="px-4 py-2.5">
+                  <span className="rounded-full bg-fuchsia-500/15 px-2.5 py-0.5 text-xs font-medium text-fuchsia-300">
                     {e.category}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-right font-semibold text-slate-100">
+                <td className="px-4 py-2.5 text-right font-semibold text-slate-100">
                   {formatPKR(e.amount)}
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-4 py-2.5 text-right">
                   <button
                     onClick={() => setPendingDelete(e)}
                     className="rounded-lg px-3 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/10"
